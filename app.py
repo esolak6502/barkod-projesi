@@ -31,8 +31,8 @@ def update():
 
 @app.route('/get_data', methods=['GET'])
 def get_data():
-    # PictoBlox'a giden tek şey saf kalori sayısı olacak
-    return last_calories
+    # Bu yeni format PictoBlox'un veriyi tanımasını sağlar
+    return {"kalori": last_calories}
 
 if __name__ == "__main__":
     app.run()
