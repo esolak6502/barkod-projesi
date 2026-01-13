@@ -1,44 +1,53 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify
 import requests
+import re
 
 app = Flask(__name__)
 
-# Başlangıçta kalori değerini "0" olarak tutuyoruz
+# Başlangıç değeri
 last_calories = "0"
 
 @app.route('/update', methods=['POST'])
 def update():
     global last_calories
-    data = request.get_json()
-    barcode = data.get('value1') # IFTTT'den gelen barkod değeri
-    
-    # Boşlukları yok eden kod:
-    if barcode:
-        barcode = str(barcode).replace(" ", "").strip()
-
-    cleaned_data = re.sub(r"\D", "", user_data)
-    
-    # Open Food Facts API sorgusu
-    url = f"https://world.openfoodfacts.org/api/v0/product/{barcode}.json"
     try:
-        response = requests.get(url).json()
-        if response.get('status') == 1:
-            product = response.get('product', {})
-            nutriments = product.get('nutriments', {})
-            # 100g başına kalori değerini al (yoksa 0 al)
-            calories = nutriments.get('energy-kcal_100g', 0)
-            last_calories = str(calories)
+        data = request.get_json()
+        if not data:
+            return "Veri gelmedi", 400
+            
+        # IFTTT'den gelen barkodu al
+        barcode_raw = data.get('value1', '')
+        
+        # Sadece rakamları tut, boşlukları ve karakterleri temizle
+        barcode = re.sub(r"\D", "", str(barcode_raw))
+        
+        if barcode:
+            url = f"https://world.openfoodfacts.org/api/v0/product/{barcode}.json"
+            response = requests.get(url, timeout=5).json()
+            
+            if response.get('status') == 1:
+                product = response.get('product', {})
+                nutriments = product.get('nutriments', {})
+                # Kalori bilgisini al
+                calories = nutriments.get('energy-kcal_100g', 0)
+                last_calories = str(calories)
+            else:
+                last_calories = "Bulunamadı"
         else:
-            last_calories = "0"
-    except:
-        last_calories = "0" # Bağlantı hatası olursa sıfırla
+            last_calories = "Barkod Gecersiz"
+            
+    except Exception as e:
+        print(f"Hata detayı: {e}")
+        last_calories = "0"
         
     return "Tamam", 200
 
 @app.route('/get_data', methods=['GET'])
 def get_data():
-    # Bu yeni format PictoBlox'un veriyi tanımasını sağlar
-    return {"kalori": last_calories}
+    return jsonify({"kalori": last_calories})
 
 if __name__ == "__main__":
-    app.run()
+    import os
+    # Deploy ortamları için dinamik port ayarı
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
