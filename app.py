@@ -15,6 +15,8 @@ def update():
     # Boşlukları yok eden kod:
     if barcode:
         barcode = str(barcode).replace(" ", "").strip()
+
+    cleaned_data = re.sub(r"\D", "", user_data)
     
     # Open Food Facts API sorgusu
     url = f"https://world.openfoodfacts.org/api/v0/product/{barcode}.json"
